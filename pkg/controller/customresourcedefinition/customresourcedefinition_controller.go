@@ -21,10 +21,6 @@ import (
 
 var log = logf.Log.WithName("controller_customresourcedefinition")
 
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
 
 // Add creates a new CustomResourceDefinition Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -47,16 +43,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes to primary resource CustomResourceDefinition
 	err = c.Watch(&source.Kind{Type: &apiextensionsv1beta1.CustomResourceDefinition{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
-	}
-
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner CustomResourceDefinition
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &apiextensionsv1beta1.CustomResourceDefinition{},
-	})
 	if err != nil {
 		return err
 	}
@@ -86,9 +72,9 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	reqLogger.Info("Reconciling CustomResourceDefinition")
 
-	// Fetch the CustomResourceDefinition instance
-	instance := &apiextensionsv1beta1.CustomResourceDefinition{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, instance)
+	// Fetch the CustomResourceDefinition list
+	crdList := &apiextensionsv1beta1.CustomResourceDefinition{}
+	err := r.client.Get(context.TODO(), crdList)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -100,54 +86,39 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
-	pod := newPodForCR(instance)
-
 	// Set CustomResourceDefinition instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	// ??
+	if err := controllerutil.SetControllerReference(crdList, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	// Check if this CRD already exists
+	found := &apiextensionsv1beta1.CustomResourceDefinition{} //is this second found needed if it's already set in crdList?
+	err = r.client.Get(context.TODO(), crdList)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+		reqLogger.Info("Adding role to group", "role", pod.Namespace, "group", pod.Name) //will need to update pod.Namespace to the role, and update pod.Name to the group
+		err = //r.client.Create(context.TODO(), pod) // a pod won't need to be created
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 
-		// Pod created successfully - don't requeue
 		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
-	return reconcile.Result{}, nil
+	if crdList.Spec.Scope == apiextensionsv1beta1.ClusterScoped{
+
+	}
+
+	if instance.Spec.Scope == apiextensionsv1beta1.NamespaceScoped{
+
+	}
+
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *apiextensionsv1beta1.CustomResourceDefinition) *corev1.Pod {
-	labels := map[string]string{
-		"app": cr.Name,
+// Need to grant CRDs to either dedicated-admins-cluster-crds ClusterRole or namespaced CRDs to the dedicated-admins-project-crds Role
+func grantRole(*apiextensionsv1beta1.CustomResourceDefinition){
+
 	}
-	return &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
-				},
-			},
-		},
-	}
-}
+	return reconcile.Result{}, err
