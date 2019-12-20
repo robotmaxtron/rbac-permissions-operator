@@ -63,18 +63,16 @@ type ReconcileCustomResourceDefinition struct {
 
 // Reconcile reads that state of the cluster for a CustomResourceDefinition object and makes changes based on the state read
 // and what is in the CustomResourceDefinition.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name) //Operator namespace & object
 	reqLogger.Info("Reconciling CustomResourceDefinition")
 
 	// Fetch the CustomResourceDefinition list
-	crdList := &apiextensionsv1beta1.CustomResourceDefinition{}
-	err := r.client.Get(context.TODO(), crdList)
+	instance := &apiextensionsv1beta1.CustomResourceDefinition{} //
+	err := r.client.Get(context.TODO(), instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -87,38 +85,26 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 	}
 
 	// Set CustomResourceDefinition instance as the owner and controller
-	// ??
-	if err := controllerutil.SetControllerReference(crdList, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Check if this CRD already exists
-	found := &apiextensionsv1beta1.CustomResourceDefinition{} //is this second found needed if it's already set in crdList?
-	err = r.client.Get(context.TODO(), crdList)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Adding role to group", "role", pod.Namespace, "group", pod.Name) //will need to update pod.Namespace to the role, and update pod.Name to the group
-		err = //r.client.Create(context.TODO(), pod) // a pod won't need to be created
-		if err != nil {
+	// Check to see if scope of CRD is either 'namespaced' or 'cluster'.
+	// instance.Spec.Scope
+	if instance.Spec.Scope == Namespaced||Cluster{
+		if instance.Spec.Scope == Cluster{
+			//Create ClusterRoleBinding
 			return reconcile.Result{}, err
-		}
+		} 
+		//Create RoleBinding
+		return reconcile.Result{}, err
+	} 
+	
+	// Need a loop here, for blacklist matching via Regex to something like instance.Spec.Version for matching against apigroup
+	if instance.Spec.Version == //apimatching{
+		return reconcile.Result{}, nil 
+	}
+
 
 		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
 	}
-
-	if crdList.Spec.Scope == apiextensionsv1beta1.ClusterScoped{
-
-	}
-
-	if instance.Spec.Scope == apiextensionsv1beta1.NamespaceScoped{
-
-	}
-
-}
-
-// Need to grant CRDs to either dedicated-admins-cluster-crds ClusterRole or namespaced CRDs to the dedicated-admins-project-crds Role
-func grantRole(*apiextensionsv1beta1.CustomResourceDefinition){
-
-	}
-	return reconcile.Result{}, err
