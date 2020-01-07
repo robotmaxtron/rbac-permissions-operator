@@ -93,10 +93,10 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 	// instance.Spec.Scope
 	if instance.Spec.Scope == Namespaced||Cluster{
 		if instance.Spec.Scope == Cluster{
-			//Create ClusterRoleBinding
+			//add the CRD to the dedicated-admins-cluster-crds group
 			return reconcile.Result{}, err
 		} 
-		//Create RoleBinding
+		//add the CRD to the dedicated-admins-project-crds group
 		return reconcile.Result{}, err
 	} 
 	
