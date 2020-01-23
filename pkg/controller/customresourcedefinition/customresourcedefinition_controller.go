@@ -2,8 +2,9 @@ package customresourcedefinition
 
 import (
 	"context"
+	"fmt"
 
-	apiextensionsv1beta1 "github.com/openshift/rbac-permissions-operator/pkg/apis/apiextensions/v1beta1"
+	"github.com/kubernetes/apiextensions-apiserver/blob/master/pkg/apis/apiextensions"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,7 +43,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource CustomResourceDefinition
-	err = c.Watch(&source.Kind{Type: &apiextensionsv1beta1.CustomResourceDefinition{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: &apiextensions.CustomResourceDefinition{}}, &handler.EnqueueRequestForObject{}) 
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 	reqLogger.Info("Reconciling CustomResourceDefinition")
 
 	// Fetch the CustomResourceDefinition list
-	instance := &apiextensionsv1beta1.CustomResourceDefinition{} //
+	instance := &apiextensions.CustomResourceDefinition{}
 	err := r.client.Get(context.TODO(), instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -89,22 +90,20 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 		return reconcile.Result{}, err
 	}
 
-	// Check to see if scope of CRD is either 'namespaced' or 'cluster'.
-	// instance.Spec.Scope
-	if instance.Spec.Scope == Namespaced||Cluster{
-		if instance.Spec.Scope == Cluster{
-			//add the CRD to the dedicated-admins-cluster-crds group
-			return reconcile.Result{}, err
-		} 
-		//add the CRD to the dedicated-admins-project-crds group
-		return reconcile.Result{}, err
-	} 
+	// Need to use the r.client.Get() to get the CRD, assign to a variable.
+	// Pull out the apigroup(Group), resources(Name, plural), and verbs (*)
+	// Then, use r.client.Update(ctx, updatedRule) or append to update the modified fields.
+	var newRule = Object{
+		//Need to pull from the incoming CRD, used to update the role/clusterrole				
+		- apiGroups:
+		  - "instance.Spec.Group"
+		  resources:
+		  - "instance.Spec.CustomResourceDefinition.Names.Plural"
+		  verbs:
+		  - '*'
+	}
+	
+	
 	
 	// Need a loop here, for blacklist matching via Regex to something like instance.Spec.Version for matching against apigroup
-	if instance.Spec.Version == //apimatching{
-		return reconcile.Result{}, nil 
-	}
-
-
-		return reconcile.Result{}, nil
 	}
