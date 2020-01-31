@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/kubernetes/apiextensions-apiserver/blob/master/pkg/apis/apiextensions"
+	rbac "github.com/kubernetes/api/rbac/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -72,38 +73,79 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 	reqLogger.Info("Reconciling CustomResourceDefinition")
 
 	// Fetch the CustomResourceDefinition list
-	instance := &apiextensions.CustomResourceDefinition{}
-	err := r.client.Get(context.TODO(), instance)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// Request object not found, could have been deleted after reconcile request.
-			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Return and don't requeue
-			return reconcile.Result{}, nil
+	crd := &apiextensions.CustomResourceDefinition{}
+	// Generated code that I think is obsolete and can be culled
+	//err := r.client.Get(context.TODO(), crd)
+	//if err != nil {
+	//	if errors.IsNotFound(err) {
+	//		// Request object not found, could have been deleted after reconcile request.
+	//		// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+	//		// Return and don't requeue
+	//		return reconcile.Result{}, nil
+	//	}
+	//	// Error reading the object - requeue the request.
+	//	return reconcile.Result{}, err
+	//}
+
+	crdName := crd.Spec.Names.Plural
+	groupName := crd.Spec.Group
+	clusterRole := &rbac.ClusterRole{}
+	clusterRoleName := ""
+
+	//Determine if the crd is namespace scoped or cluster scoped
+	if crd.Spec.Scope == "namespaced" {
+		clusterRoleName = config.CRDClusterRoleNamespaced
+	} else { 
+		clusterRoleName = config.CRDClusterRoleGlobal
+	}
+
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole)		
+		if err != nil{
+			failedToGetCRDMsg := fmt.Sprintf("Failed to get CRD %s", crdName)
+			reqLogger.Error(err, failedToGetCRDMsg)
+			return reconcile.Result{}, err 
 		}
-		// Error reading the object - requeue the request.
+
+	// if found = true, break.
+	// if found = false, add permission. via appending a new object, use r.client.update to update the role.
+	found:=isPermissionInClusterrole(crdName, groupName, clusterRoleName)
+		if found != nil {
+			return reconcile.Result{}, nil
+		} else {
+
+		}
+		
+
+	// Set CustomResourceDefinition crd as the owner and controller
+	if err := controllerutil.SetControllerReference(crd, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-
-	// Set CustomResourceDefinition instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, r.scheme); err != nil {
-		return reconcile.Result{}, err
+	
+	// Mapping to store what will be added to the role/clusterrole
+	newRule := map[string]string[]{
+	newRule["apiGroups:"] = crd.Spec.Group
+	newRule["resources:"] = crd.Spec.Names.Plural
+	newRule["verbs:"] = '*'
+	}
+	
+	// Need a loop here, for blacklist matching via Regex to something like crd.Spec.Version for matching against apigroup
 	}
 
-	// Need to use the r.client.Get() to get the CRD, assign to a variable.
-	// Pull out the apigroup(Group), resources(Name, plural), and verbs (*)
-	// Then, use r.client.Update(ctx, updatedRule) or append to update the modified fields.
-	var newRule = Object{
-		//Need to pull from the incoming CRD, used to update the role/clusterrole				
-		- apiGroups:
-		  - "instance.Spec.Group"
-		  resources:
-		  - "instance.Spec.CustomResourceDefinition.Names.Plural"
-		  verbs:
-		  - '*'
+func isPermissionInClusterrole(crdName string,groupName string,clusterRole rbac.ClusterRole ) bool {
+	rulesList := clusterRole.Rules
+	doesAPIGroupMatch := false
+	for _, permission := range rulesList {
+		for _, ag := range permission.ApiGroups {
+			if ag == groupName{
+				doesAPIGroupMatch = true
+			}
+		}
+		for _, resource := range permission.Resources {
+			if resource == crdName && doesAPIGroupMatch==true {
+				return true
+			}
+		}
+		doesAPIGroupMatch = false
 	}
-	
-	
-	
-	// Need a loop here, for blacklist matching via Regex to something like instance.Spec.Version for matching against apigroup
-	}
+	return false
+}

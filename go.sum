@@ -129,6 +129,7 @@ github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/pty v1.1.4/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/kubernetes/api v0.17.2 h1:Ag4BQrSsBMnI2RpFXvRo5X/prsINatM90jDo5dASa6s=
 github.com/kubernetes/apiextensions-apiserver v0.17.0 h1:lPAQ2ot4YPfHowvj2A4PTQHPxKYaRU1jmtpsh+bA8Rg=
 github.com/kubernetes/apiextensions-apiserver v0.17.2 h1:+0uvSYmrGTUyCL9+L7/HLKZ4uJmakbw1pOt17jei3k0=
 github.com/mailru/easyjson v0.0.0-20180823135443-60711f1a8329 h1:2gxZ0XQIU/5z3Z3bUBu+FXuk2pFbkN6tcwi/pjyaDic=

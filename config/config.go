@@ -15,7 +15,9 @@
 package config
 
 const (
-	OperatorConfigMapName string = "rbac-permissions-operator"
-	OperatorName          string = "rbac-permissions-operator"
-	OperatorNamespace     string = "openshift-rbac-permissions-operator"
+	OperatorConfigMapName    string = "rbac-permissions-operator"
+	OperatorName             string = "rbac-permissions-operator"
+	OperatorNamespace        string = "openshift-rbac-permissions-operator"
+	CRDClusterRoleGlobal     string = "dedicated-admins-cluster-crds"		 
+	CRDClusterRoleNamespaced string = "dedicated-admins-project-crds"
 )
