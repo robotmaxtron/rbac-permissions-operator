@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kubernetes/apiextensions-apiserver/blob/master/pkg/apis/apiextensions"
 	rbac "github.com/kubernetes/api/rbac/v1"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/kubernetes/apiextensions-apiserver/blob/master/pkg/apis/apiextensions"
+	"github.com/openshift/rbac-permissions-operator/config"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,10 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+	dedicatedadminproject "github.com/openshift/dedicated-admin-operator/pkg/dedicatedadmin/project"
 )
 
 var log = logf.Log.WithName("controller_customresourcedefinition")
-
 
 // Add creates a new CustomResourceDefinition Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -44,7 +42,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to primary resource CustomResourceDefinition
-	err = c.Watch(&source.Kind{Type: &apiextensions.CustomResourceDefinition{}}, &handler.EnqueueRequestForObject{}) 
+	err = c.Watch(&source.Kind{Type: &apiextensions.CustomResourceDefinition{}}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
 	}
@@ -74,74 +72,74 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 
 	// Fetch the CustomResourceDefinition list
 	crd := &apiextensions.CustomResourceDefinition{}
-	// Generated code that I think is obsolete and can be culled
-	//err := r.client.Get(context.TODO(), crd)
-	//if err != nil {
-	//	if errors.IsNotFound(err) {
-	//		// Request object not found, could have been deleted after reconcile request.
-	//		// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-	//		// Return and don't requeue
-	//		return reconcile.Result{}, nil
-	//	}
-	//	// Error reading the object - requeue the request.
-	//	return reconcile.Result{}, err
+	err := r.client.Get(context.TODO(), crd)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Return and don't requeue
+			return reconcile.Result{}, nil
+		}
+		// Error reading the object - requeue the request.
+		return reconcile.Result{}, err
 	//}
 
 	crdName := crd.Spec.Names.Plural
 	groupName := crd.Spec.Group
 	clusterRole := &rbac.ClusterRole{}
 	clusterRoleName := ""
-
+	err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
+	if err != nil {
+		failedToGetCRDMsg := fmt.Sprintf("Failed to get Cluster Role %s", clusterRoleName)
+		reqLogger.Error(err, failedToGetCRDMsg)
+		return reconcile.Result{}, err
+	}
 	//Determine if the crd is namespace scoped or cluster scoped
 	if crd.Spec.Scope == "namespaced" {
 		clusterRoleName = config.CRDClusterRoleNamespaced
-	} else { 
+	} else {
 		clusterRoleName = config.CRDClusterRoleGlobal
 	}
 
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole)		
-		if err != nil{
-			failedToGetCRDMsg := fmt.Sprintf("Failed to get CRD %s", crdName)
-			reqLogger.Error(err, failedToGetCRDMsg)
-			return reconcile.Result{}, err 
-		}
-
 	// if found = true, break.
 	// if found = false, add permission. via appending a new object, use r.client.update to update the role.
-	found:=isPermissionInClusterrole(crdName, groupName, clusterRoleName)
-		if found != nil {
-			return reconcile.Result{}, nil
-		} else {
+	found := isPermissionInClusterrole(crdName, groupName, clusterRoleName)
+	if found == true {
+		//Permission is already present
+		return reconcile.Result{}, nil
+	} else {
+		// Mapping to store what will be added to the role/clusterrole
+		newRule := make(map[string]string)
+		newRule["apiGroups:"] = crd.Spec.Group
+		newRule["resources:"] = crd.Spec.Names.Plural
+		newRule["verbs:"] = "*"
+		dedicatedadminproject.ClusterRoles
+		//Logic to add the newRule to the clusterrole
 
-		}
-		
+		return reconcile.Result{}, err
+	}
 
 	// Set CustomResourceDefinition crd as the owner and controller
 	if err := controllerutil.SetControllerReference(crd, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
-	
-	// Mapping to store what will be added to the role/clusterrole
-	newRule := map[string]string[]{
-	newRule["apiGroups:"] = crd.Spec.Group
-	newRule["resources:"] = crd.Spec.Names.Plural
-	newRule["verbs:"] = '*'
-	}
-	
-	// Need a loop here, for blacklist matching via Regex to something like crd.Spec.Version for matching against apigroup
-	}
 
-func isPermissionInClusterrole(crdName string,groupName string,clusterRole rbac.ClusterRole ) bool {
+	// Need a loop here, for blacklist matching via Regex to something like crd.Spec.Version for matching against apigroup
+
+	return reconcile.Result{}, nil
+}
+
+func isPermissionInClusterrole(crdName string, groupName string, clusterRole rbac.ClusterRole) bool {
 	rulesList := clusterRole.Rules
 	doesAPIGroupMatch := false
 	for _, permission := range rulesList {
 		for _, ag := range permission.ApiGroups {
-			if ag == groupName{
+			if ag == groupName {
 				doesAPIGroupMatch = true
 			}
 		}
 		for _, resource := range permission.Resources {
-			if resource == crdName && doesAPIGroupMatch==true {
+			if resource == crdName && doesAPIGroupMatch == true {
 				return true
 			}
 		}
