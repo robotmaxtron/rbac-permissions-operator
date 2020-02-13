@@ -34,6 +34,7 @@ require (
 	golang.org/x/text v0.3.2 // indirect
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
 	golang.org/x/tools v0.0.0-20190814235402-ea4142463bf3 // indirect
+	google.golang.org/genproto v0.0.0-20190307195333-5fe7a883aa19
 	k8s.io/api v0.0.0-20190814101207-0772a1bdf941
 	k8s.io/apimachinery v0.0.0-20190814100815-533d101be9a6
 	k8s.io/client-go v2.0.0-alpha.0.0.20181126152608-d082d5923d3c+incompatible

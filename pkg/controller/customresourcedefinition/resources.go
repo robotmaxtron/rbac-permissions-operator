@@ -12,30 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package project
+package customresourcedefinition
 
 import (
-	"google.golang.org/genproto/googleapis/ads/googleads/v0/resources"
+	//"google.golang.org/genproto/googleapis/ads/googleads/v0/resources"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var ClusterRoles = map[string]rbacv1.ClusterRole{
+var ruleTemplate = rbacv1.PolicyRule{
+	Verbs: []string{
+		"*",
+	},
+}
+
+
+var ClusterRoles = map[string]rbacv1.PolicyRule{
 	"dedicated-admins-cluster-crds": {
-		apiVersion: "rbac.authorization.k8s.io/v1",
+		apiVersion: []string "rbac.authorization.k8s.io/v1",
 		kind: "ClusterRole",
 		metadata: metav1.ObjectMeta{
 			Name: "dedicated-admins-cluster-crds",
 		},
-		Rules: []rbacv1.ClusterRole.Rules{
+		Rules: []rbacv1.ClusterRole.Rules,{
 			{
 				APIGroup: "rbac.authorization.k8s.io",
 				attributeRestrictions: "null",
-				resources: []rbacv1.ClusterRole.Rules.resources{
-					""
+				resources: []rbacv1.ClusterRole.Rules.resources,{
+					"",
 				},
-				verbs: []rbacv1.ClusterRole.Rules.verbs{
-					""
+				verbs: []rbacv1.ClusterRole.Rules.verbs,{
+					"",
 				},
 			},
 		},
@@ -45,17 +52,17 @@ var ClusterRoles = map[string]rbacv1.ClusterRole{
 			kind: "ClusterRole",
 			metadata: metav1.ObjectMeta{
 				Name: "dedicated-admins-project-crds",
-				Namespace: ""
+				Namespace: "",
 			},
-			Rules: []rbacv1.ClusterRole.Rules{
+			Rules: []rbacv1.ClusterRole.Rules,{
 				{
 					APIGroup: "rbac.authorization.k8s.io",
 					attributeRestrictions: "null",
-					resources: []rbacv1.ClusterRole.Rules.resources{
-						""
+					resources: []rbacv1.ClusterRole.Rules.resources,{
+						"",
 					},
-					verbs: []rbacv1.ClusterRole.Rules.verbs{
-						""
+					verbs: []rbacv1.ClusterRole.Rules.verbs,{
+						"",
 					},
 				},
 			},

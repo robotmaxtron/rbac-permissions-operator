@@ -88,7 +88,7 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 	groupName := crd.Spec.Group
 	clusterRole := &rbac.ClusterRole{}
 	clusterRoleName := ""
-	err := r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
 	if err != nil {
 		failedToGetCRDMsg := fmt.Sprintf("Failed to get Cluster Role %s", clusterRoleName)
 		reqLogger.Error(err, failedToGetCRDMsg)
@@ -109,11 +109,19 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 		return reconcile.Result{}, nil
 	} else {
 		// Mapping to store what will be added to the role/clusterrole
-		newRule := make(map[string]string)
-		newRule["apiGroups:"] = crd.Spec.Group
-		newRule["resources:"] = crd.Spec.Names.Plural
-		newRule["verbs:"] = "*"
-		dedicatedadminproject.ClusterRoles
+		newRule := ruleTemplate
+		apigroups := []string{
+			groupName,
+		}
+		newRule.APIGroups = []string{
+			apigroups,
+		}
+	
+		newRule.Resources = []string{
+			crdName,
+		}
+		
+		clusterRole.Rules = append(clusterRole.Rules, newrule)
 		//Logic to add the newRule to the clusterrole
 
 		return reconcile.Result{}, err
@@ -127,9 +135,10 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 	// Need a loop here, for blacklist matching via Regex to something like crd.Spec.Version for matching against apigroup
 
 	return reconcile.Result{}, nil
+	}
 }
 
-func isPermissionInClusterrole(crdName string, groupName string, clusterRole rbac.ClusterRole) bool {
+func isPermissionInClusterrole(crdName string, groupName string, clusterRole rbac.ClusterRole) (bool) {
 	rulesList := clusterRole.Rules
 	doesAPIGroupMatch := false
 	for _, permission := range rulesList {
