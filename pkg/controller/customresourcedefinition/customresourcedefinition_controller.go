@@ -4,20 +4,19 @@ import (
 	"context"
 	"fmt"
 
-	rbac "github.com/kubernetes/api/rbac/v1"
-	"github.com/kubernetes/apiextensions-apiserver/blob/master/pkg/apis/apiextensions"
 	"github.com/openshift/rbac-permissions-operator/config"
+	rbac "k8s.io/api/rbac/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	dedicatedadminproject "github.com/openshift/dedicated-admin-operator/pkg/dedicatedadmin/project"
 )
 
 var log = logf.Log.WithName("controller_customresourcedefinition")
@@ -72,7 +71,7 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 
 	// Fetch the CustomResourceDefinition list
 	crd := &apiextensions.CustomResourceDefinition{}
-	err := r.client.Get(context.TODO(), crd)
+	err := r.client.Get(context.TODO(), request.NamespacedName, crd)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
@@ -82,67 +81,61 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
-	//}
+		//}
 
-	crdName := crd.Spec.Names.Plural
-	groupName := crd.Spec.Group
-	clusterRole := &rbac.ClusterRole{}
-	clusterRoleName := ""
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
-	if err != nil {
-		failedToGetCRDMsg := fmt.Sprintf("Failed to get Cluster Role %s", clusterRoleName)
-		reqLogger.Error(err, failedToGetCRDMsg)
-		return reconcile.Result{}, err
-	}
-	//Determine if the crd is namespace scoped or cluster scoped
-	if crd.Spec.Scope == "namespaced" {
-		clusterRoleName = config.CRDClusterRoleNamespaced
-	} else {
-		clusterRoleName = config.CRDClusterRoleGlobal
-	}
+		crdName := crd.Spec.Names.Plural
+		groupName := crd.Spec.Group
+		clusterRole := &rbac.ClusterRole{}
+		clusterRoleName := ""
 
-	// if found = true, break.
-	// if found = false, add permission. via appending a new object, use r.client.update to update the role.
-	found := isPermissionInClusterrole(crdName, groupName, clusterRoleName)
-	if found == true {
-		//Permission is already present
-		return reconcile.Result{}, nil
-	} else {
-		// Mapping to store what will be added to the role/clusterrole
-		newRule := ruleTemplate
-		apigroups := []string{
-			groupName,
+		//Determine if the crd is namespace scoped or cluster scoped
+		if crd.Spec.Scope == "namespaced" {
+			clusterRoleName = config.CRDClusterRoleNamespaced
+		} else {
+			clusterRoleName = config.CRDClusterRoleGlobal
 		}
-		newRule.APIGroups = []string{
-			apigroups,
+
+		err = r.client.Get(context.TODO(), types.NamespacedName{Name: clusterRoleName}, clusterRole)
+		if err != nil {
+			failedToGetCRDMsg := fmt.Sprintf("Failed to get Cluster Role %s", clusterRoleName)
+			reqLogger.Error(err, failedToGetCRDMsg)
+			return reconcile.Result{}, err
 		}
-	
-		newRule.Resources = []string{
-			crdName,
+
+		// if found = true, break.
+		// if found = false, add permission. via appending a new object, use r.client.update to update the role.
+		found := isPermissionInClusterrole(crdName, groupName, clusterRole)
+		if found == true {
+			//Permission is already present
+			return reconcile.Result{}, nil
+		} else {
+			// Mapping to store what will be added to the role/clusterrole
+			newRule := ruleTemplate
+
+			newRule.APIGroups = []string{
+				groupName,
+			}
+
+			newRule.Resources = []string{
+				crdName,
+			}
+
+			clusterRole.Rules = append(clusterRole.Rules, newRule)
+			//Logic to add the newRule to the clusterrole
+
+			return reconcile.Result{}, err
 		}
-		
-		clusterRole.Rules = append(clusterRole.Rules, newrule)
-		//Logic to add the newRule to the clusterrole
 
-		return reconcile.Result{}, err
+		// Need a loop here, for blacklist matching via Regex to something like crd.Spec.Version for matching against apigroup
 	}
-
-	// Set CustomResourceDefinition crd as the owner and controller
-	if err := controllerutil.SetControllerReference(crd, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Need a loop here, for blacklist matching via Regex to something like crd.Spec.Version for matching against apigroup
-
 	return reconcile.Result{}, nil
-	}
 }
 
-func isPermissionInClusterrole(crdName string, groupName string, clusterRole rbac.ClusterRole) (bool) {
+func isPermissionInClusterrole(crdName string, groupName string, clusterRole *rbac.ClusterRole) bool {
 	rulesList := clusterRole.Rules
 	doesAPIGroupMatch := false
 	for _, permission := range rulesList {
-		for _, ag := range permission.ApiGroups {
+		for _, ag := range permission.APIGroups {
 			if ag == groupName {
 				doesAPIGroupMatch = true
 			}
