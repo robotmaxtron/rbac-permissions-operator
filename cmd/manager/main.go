@@ -22,6 +22,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/restmapper"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -114,6 +115,11 @@ func main() {
 
 	if err := monitoringv1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "error registering prometheus monitoring objects")
+		os.Exit(1)
+	}
+
+	if err := apiextensions.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
 		os.Exit(1)
 	}
 

@@ -80,7 +80,7 @@ func (r *ReconcileCustomResourceDefinition) Reconcile(request reconcile.Request)
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		//return reconcile.Result{}, err
 		//}
 
 		crdName := crd.Spec.Names.Plural
