@@ -16,9 +16,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
@@ -99,7 +99,7 @@ func (r *ReconcileSubjectPermission) Reconcile(request reconcile.Request) (recon
 		localmetrics.DeletePrometheusMetric(instance)
 		return reconcile.Result{}, nil
 	}
-
+	// TODO - Verify if the following list functions need to be updated as part of the migration -> https://github.com/operator-framework/operator-sdk/blob/master/doc/migration/version-upgrade-guide.md#controller-runtime-api-updates	
 	// get list of clusterRole on k8s
 	clusterRoleList := &v1.ClusterRoleList{}
 	opts := client.ListOptions{}
